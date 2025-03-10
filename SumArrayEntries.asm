@@ -1,11 +1,11 @@
-@R2   // THIS WILL STORE THE SUM 
+@R2 
 M = 0 
 
 @R0     
 
 D = M 
 
-@R8     // changeable value that stores the value at R0 to access the items of our array 
+@R8 
 
 M = D 
 
@@ -13,7 +13,7 @@ M = D
 
 D = M 
 
-@R7    // changeable value that stores the number of values in our array 
+@R7
 M = D 
 
 (LOOP)
