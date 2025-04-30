@@ -1,130 +1,138 @@
-// ----- First: Check for division by zero ----- 
-   @R1           // Load divisor
-   D=M
-   @INVALID_DIV // If R1==0, jump to error routine
-   D;JEQ
+// Initialize error flag to 0
+@R4
+M=0
 
-// ----- Save sign flags for R1 and R0 ----- 
-// For divisor: store +1 if positive, -1 if negative in R8.
-   @R1
-   D=M
-   @DIV1_POS
-   D;JGE       // If R1>=0, jump to DIV1_POS
-   @R8
-   M=-1       // R1 was negative; flag = -1
-   @SKIP_DIV_SIGN1
-   0;JMP
-(DIV1_POS)
-   @R8
-   M=1        // R1 was nonnegative; flag = +1
-(SKIP_DIV_SIGN1)
+// Check if y == 0
+@R1
+D=M
+@DIV_ZERO
+D;JEQ     // If y == 0, jump to DIV_ZERO
 
-// For dividend: store +1 if positive, -1 if negative in R7.
-   @R0
-   D=M
-   @DIV0_POS
-   D;JGE       // If R0>=0, jump to DIV0_POS
-   @R7
-   M=-1      // R0 was negative; flag = -1
-   @SKIP_DIV_SIGN0
-   0;JMP
-(DIV0_POS)
-   @R7
-   M=1       // R0 was nonnegative; flag = +1
-(SKIP_DIV_SIGN0)
+// Copy x R0 into R5, y R1 into R6
+@R0
+D=M
+@R5
+M=D      // R5 = x
 
-// ----- Compute absolute values for R1 and R0 ----- 
-// Get |R1| into R6
-   @R1
-   D=M
-   @ABS_R1
-   D;JGE      // If R1 is nonnegative, skip negation
-   @R1
-   D=M
-   D=-D      // Otherwise, negate it
-(ABS_R1)
-   @R6
-   M=D      // R6 now holds the absolute value of R1
+@R1
+D=M
+@R6
+M=D      // R6 = y
 
-// Get |R0| into R5
-   @R0
-   D=M
-   @ABS_R0
-   D;JGE      // If R0 is nonnegative, skip negation
-   @R0
-   D=M
-   D=-D      // Otherwise, negate it
-(ABS_R0)
-   @R5
-   M=D      // R5 now holds the absolute value of R0
+// Take absolute values of x and y
+// R7 = |x|
+@R5
+D=M
+@X_NEG
+D;JLT
+@R7
+M=D
+@Y_ABS
+0;JMP
+(X_NEG)
+D=-D
+@R7
+M=D
 
-// ----- Initialize quotient and error flag ----- 
-   @R4
-   M=0      // R4 = 0 (no error)
-   @R2
-   M=0      // R2 will hold the quotient
+// R8 = |y|
+(Y_ABS)
+@R6
+D=M
+@Y_NEG
+D;JLT
+@R8
+M=D
+@INIT_QUOT
+0;JMP
+(Y_NEG)
+D=-D
+@R8
+M=D
 
-// Copy the absolute dividend from R5 into R3 (the running remainder)
-   @R5
-   D=M
-   @R3
-   M=D
+// R2 to 0
+(INIT_QUOT)
+@R2
+M=0
 
-// ----- Division Loop: Repeated subtraction ----- 
-(LOOP)
-   @R3
-   D=M        // Load current remainder
-   @R6
-   D=D-M      // Compute (remainder - divisor)
-   @END_LOOP
-   D;JLT      // If (remainder - divisor) is negative, exit loop
-   @R3
-   M=D        // Update remainder with new value
-   @R2
-   M=M+1      // Increment quotient
-   @LOOP
-   0;JMP
+// temp = |x| in R9
+@R7
+D=M
+@R9
+M=D
 
-(END_LOOP)
-// ----- Adjust result signs ----- 
-// The true quotient should be negative if the dividend and divisor have opposite signs.
-// (Since both R2 and R3 are currently absolute values, we check the sign flags in R7 and R8.)
-   @R7
-   D=M        // D = dividend sign (+1 or -1)
-   @R8
-   D=D-M     // D = (dividend sign - divisor sign); if zero, they are the same.
-   @SIGN_CORRECT
-   D;JEQ      // If D==0 then the signs were the same; no change needed.
-   // Otherwise, the signs differ so negate the quotient.
-   @R2
-   D=M
-   D=-D
-   @R2
-   M=D
-(SIGN_CORRECT)
-// Also, the remainder should have the same sign as the dividend.
-   @R7
-   D=M
-   @REMAINDER_POS
-   D;JGT     // If dividend was positive, leave remainder as is.
-   // Else (dividend negative), negate the remainder.
-   @R3
-   D=M
-   D=-D
-   @R3
-   M=D
-(REMAINDER_POS)
-   @END
-   0;JMP
+// While R9 >= R8
+(SUB_LOOP)
+@R9
+D=M
+@R8
+D=D-M
+@AFTER_LOOP
+D;LT     // if remainder < divisor, exit loop
 
-// ----- Error Routine: Division by zero ----- 
-(INVALID_DIV)
-   @R4
-   M=1      // Set error flag to 1 to indicate invalid division
-   @END
-   0;JMP
+// Subtract |y| from remainder R9 -= R8
+@R9
+M=M
+@R8
+D=M
+@R9
+M=M-D
 
-// ----- End: Infinite loop ----- 
+// R2 += 1
+@R2
+M=M+1
+
+@SUB_LOOP
+0;JMP
+
+(AFTER_LOOP)
+// Check if x and y have different signs
+@R5
+D=M
+@R6
+D=D*M    // D = x * y
+@POS_SIGN
+D;JGE     // If x*y >= 0, signs match
+
+// If signs differ, negate quotient (R2 = -R2)
+@R2
+M=-M
+
+(POS_SIGN)
+// If x was negative,remainder R3 = -R9, else copy R9
+@R5
+D=M
+@X_POS
+D;JGE
+
+// R3 = -R9
+@R9
+D=M
+@R3
+M=-D
+@DONE
+0;JMP
+
+(X_POS)
+// R3 = R9
+@R9
+D=M
+@R3
+M=D
+
+(DONE)
+// Valid division, leave R4 as 0
+@END
+0;JMP
+
+// Division by zero case
+(DIV_ZERO)
+@R4
+M=1     // Set error flag
+@R2
+M=0     // Clear quotient
+@R3
+M=0     // Clear remainder
+
 (END)
-   @END
-   0;JMP
+@END
+0;JMP   // Infinite loop
