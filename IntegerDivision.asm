@@ -1,138 +1,123 @@
-// Initialize error flag to 0
-@R4
-M=0
+// Division by zero
+@R1        // Load divisor
+D=M
+@INVALID_DIV
+D;JEQ      // If R1 == 0, go to error
 
-// Check if y == 0
+// R8 = sign of R1
 @R1
 D=M
-@DIV_ZERO
-D;JEQ     // If y == 0, jump to DIV_ZERO
+@DIV1_POS
+D;JGE
+@R8
+M=-1
+@SKIP_DIV_SIGN1
+0;JMP
+(DIV1_POS)
+@R8
+M=1
+(SKIP_DIV_SIGN1)
 
-// Copy x R0 into R5, y R1 into R6
+// R7 = sign of R0
 @R0
 D=M
-@R5
-M=D      // R5 = x
+@DIV0_POS
+D;JGE
+@R7
+M=-1
+@SKIP_DIV_SIGN0
+0;JMP
+(DIV0_POS)
+@R7
+M=1
+(SKIP_DIV_SIGN0)
 
+// Absolute values
+// |R1| → R6
 @R1
 D=M
+@ABS_R1
+D;JGE
+D=-D
+(ABS_R1)
 @R6
-M=D      // R6 = y
+M=D
 
-// Take absolute values of x and y
-// R7 = |x|
+// |R0| → R5
+@R0
+D=M
+@ABS_R0
+D;JGE
+D=-D
+(ABS_R0)
+@R5
+M=D
+
+// Quotient and error
+@R4
+M=0        // no error
+@R2
+M=0        // quotient = 0
+
+// Copy |R0| to R3
 @R5
 D=M
-@X_NEG
-D;JLT
-@R7
-M=D
-@Y_ABS
-0;JMP
-(X_NEG)
-D=-D
-@R7
+@R3
 M=D
 
-// R8 = |y|
-(Y_ABS)
+// Division Loop
+(LOOP)
+@R3
+D=M
 @R6
-D=M
-@Y_NEG
+D=D-M
+@END_LOOP
 D;JLT
-@R8
+@R3
 M=D
-@INIT_QUOT
-0;JMP
-(Y_NEG)
-D=-D
-@R8
-M=D
-
-// R2 to 0
-(INIT_QUOT)
 @R2
-M=0
+M=M+1
+@LOOP
+0;JMP
 
-// temp = |x| in R9
+(END_LOOP)
+// R2 if signs differ
 @R7
-D=M
-@R9
-M=D
-
-// While R9 >= R8
-(SUB_LOOP)
-@R9
 D=M
 @R8
 D=D-M
-@AFTER_LOOP
-D;LT     // if remainder < divisor, exit loop
-
-// Subtract |y| from remainder R9 -= R8
-@R9
-M=M
-@R8
-D=M
-@R9
-M=M-D
-
-// R2 += 1
+@SIGN_CORRECT
+D;JEQ
 @R2
-M=M+1
-
-@SUB_LOOP
-0;JMP
-
-(AFTER_LOOP)
-// Check if x and y have different signs
-@R5
 D=M
-@R6
-D=D*M    // D = x * y
-@POS_SIGN
-D;JGE     // If x*y >= 0, signs match
-
-// If signs differ, negate quotient (R2 = -R2)
+D=-D
 @R2
-M=-M
+M=D
+(SIGN_CORRECT)
 
-(POS_SIGN)
-// If x was negative,remainder R3 = -R9, else copy R9
-@R5
+// Remainder sign match
+@R7
 D=M
-@X_POS
-D;JGE
-
-// R3 = -R9
-@R9
-D=M
+@REMAINDER_POS
+D;JGT
 @R3
-M=-D
-@DONE
-0;JMP
-
-(X_POS)
-// R3 = R9
-@R9
 D=M
+D=-D
 @R3
 M=D
-
-(DONE)
-// Valid division, leave R4 as 0
+(REMAINDER_POS)
 @END
 0;JMP
 
-// Division by zero case
-(DIV_ZERO)
+// Division by zero 
+(INVALID_DIV)
 @R4
-M=1     // Set error flag
-@R2
-M=0     // Clear quotient
-@R3
-M=0     // Clear remainder
+M=1
+@END
+0;JMP
 
+// End loop
 (END)
 @END
-0;JMP   // Infinite loop
+0;JMP
+
